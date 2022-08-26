@@ -30,7 +30,10 @@
 #
 # Author: Jonathan Bohren
 
-import rospy
+from functools import partial
+import rclpy
+from rclpy.time import Duration
+from rclpy.executors import SingleThreadedExecutor
 import rospkg
 
 from smach_msgs.msg import SmachContainerStatus, SmachContainerInitialStatusCmd, SmachContainerStructure
@@ -41,10 +44,7 @@ import threading
 import pickle
 import pprint
 import copy
-try:
-    from StringIO import StringIO  # for Python 2
-except ImportError:
-    from io import StringIO  # for Python 3
+from io import StringIO  # for Python 3
 import colorsys
 import time
 
@@ -172,17 +172,16 @@ class ContainerNode():
         self._active_states = msg.active_states
 
         # Unpack the user data
-        while not rospy.is_shutdown():
+        while rclpy.ok():
             try:
-                data = msg.local_data
-                data = base64.b64decode(data)
-                self._local_data._data = pickle.loads(data)
+                # data = msg.local_data
+                # data = base64.b64decode(data)
+                self._local_data._data = pickle.loads(msg.local_data)
                 break
             except ImportError as ie:
                 # This will only happen once for each package
                 modulename = ie.args[0][16:]
                 packagename = modulename[0:modulename.find('.')]
-                roslib.load_manifest(packagename)
                 self._local_data._data = pickle.loads(msg.local_data)
 
         # Store the info string
@@ -466,6 +465,9 @@ class SmachViewerFrame(wx.Frame):
 
     def __init__(self):
         wx.Frame.__init__(self, None, -1, "Smach Viewer", size=(720, 480))
+        self._node = rclpy.create_node("smach_viewer")
+        self._executor = SingleThreadedExecutor()
+        self._executor.add_node(self._node)
 
         # Create graph
         self._containers = {}
@@ -503,7 +505,7 @@ class SmachViewerFrame(wx.Frame):
 
         # Path list
         self.path_combo = wx.ComboBox(toolbar, -1, style=wx.CB_DROPDOWN)
-        self.path_combo .Bind(wx.EVT_COMBOBOX, self.set_path)
+        self.path_combo.Bind(wx.EVT_COMBOBOX, self.set_path)
         self.path_combo.Append('/')
         self.path_combo.SetValue('/')
         toolbar.AddControl(self.path_combo)
@@ -546,9 +548,9 @@ class SmachViewerFrame(wx.Frame):
         toolbar.AddControl(toggle_auto_focus)
 
         toolbar.AddControl(wx.StaticText(toolbar, -1, "    "))
-        toolbar.AddLabelTool(wx.ID_HELP, 'Help',
+        toolbar.AddTool(wx.ID_HELP, 'Help',
                              wx.ArtProvider.GetBitmap(wx.ART_HELP, wx.ART_OTHER, (16, 16)))
-        toolbar.AddLabelTool(wx.ID_SAVE, 'Save',
+        toolbar.AddTool(wx.ID_SAVE, 'Save',
                              wx.ArtProvider.GetBitmap(wx.ART_FILE_SAVE, wx.ART_OTHER, (16, 16)))
         toolbar.Realize()
 
@@ -640,6 +642,18 @@ class SmachViewerFrame(wx.Frame):
         self._update_tree_thread = threading.Thread(target=self._update_tree)
         self._update_tree_thread.start()
 
+        self._spinner = threading.Thread(target=self._executor.spin)
+        self._spinner.start()
+
+    def __del__(self):
+        self.node.destroy_node()
+        self._executor.shutdown()
+        self._spinner.join()
+
+    @property
+    def node(self):
+        return self._node
+
     def OnQuit(self, event):
         """Quit Event: kill threads and wait for join."""
         with self._update_cond:
@@ -649,7 +663,7 @@ class SmachViewerFrame(wx.Frame):
         self._server_list_thread.join()
         self._update_graph_thread.join()
         self._update_tree_thread.join()
-
+        self.node.get_logger().info("All threads stopped press Ctrl+C")
         event.Skip()
 
     def update_graph(self):
@@ -665,7 +679,7 @@ class SmachViewerFrame(wx.Frame):
 
         server_name = self._containers[parent_path]._server_name
         self._client.set_initial_state(server_name, parent_path, [
-                                       state], timeout=rospy.Duration(60.0))
+                                       state], timeout=Duration(seconds=60.0))
 
     def set_path(self, event):
         """Event: Change the viewable path and update the graph."""
@@ -783,7 +797,7 @@ class SmachViewerFrame(wx.Frame):
                 # Disable the initial state button for this selection
                 self.is_button.Disable()
 
-    def _structure_msg_update(self, msg, server_name):
+    def _structure_msg_update(self, server_name, msg):
         """Update the structure of the SMACH plan (re-generate the dotcode)."""
 
         # Just return if we're shutting down
@@ -795,19 +809,19 @@ class SmachViewerFrame(wx.Frame):
         pathsplit = path.split('/')
         parent_path = '/'.join(pathsplit[0:-1])
 
-        rospy.logdebug("RECEIVED: "+path)
-        rospy.logdebug("CONTAINERS: "+str(self._containers.keys()))
+        self.node.get_logger().debug("RECEIVED: "+path)
+        self.node.get_logger().debug("CONTAINERS: "+str(self._containers.keys()))
 
         # Initialize redraw flag
         needs_redraw = False
 
         if path in self._containers:
-            rospy.logdebug("UPDATING: "+path)
+            self.node.get_logger().debug("UPDATING: "+path)
 
             # Update the structure of this known container
             needs_redraw = self._containers[path].update_structure(msg)
         else:
-            rospy.logdebug("CONSTRUCTING: "+path)
+            self.node.get_logger().debug("CONSTRUCTING: "+path)
 
             # Create a new container
             container = ContainerNode(server_name, msg)
@@ -845,7 +859,7 @@ class SmachViewerFrame(wx.Frame):
 
         # Get the path to the updating conainer
         path = msg.path
-        rospy.logdebug("STATUS MSG: "+path)
+        self.node.get_logger().debug("STATUS MSG: "+path)
 
         # Check if this is a known container
         if path in self._containers:
@@ -874,7 +888,7 @@ class SmachViewerFrame(wx.Frame):
           2: The status of the SMACH plans has changed. In this case, we only
           need to change the styles of the graph.
         """
-        while self._keep_running and not rospy.is_shutdown():
+        while self._keep_running and rclpy.ok():
             with self._update_cond:
                 # Wait for the update condition to be triggered
                 self._update_cond.wait()
@@ -953,7 +967,7 @@ class SmachViewerFrame(wx.Frame):
 
     def _update_tree(self):
         """Update the tree view."""
-        while self._keep_running and not rospy.is_shutdown():
+        while self._keep_running and rclpy.ok():
             with self._update_cond:
                 self._update_cond.wait()
                 self.tree.DeleteAllItems()
@@ -1001,21 +1015,22 @@ class SmachViewerFrame(wx.Frame):
 
             # Create subscribers for new servers
             for server_name in new_server_names:
-                self._structure_subs[server_name] = rospy.Subscriber(
-                    server_name+smach_ros.introspection.STRUCTURE_TOPIC,
-                    SmachContainerStructure,
-                    callback=self._structure_msg_update,
-                    callback_args=server_name,
-                    queue_size=50)
+                self._structure_subs[server_name] = self.node.create_subscription(
+                    topic=server_name + smach_ros.introspection.STRUCTURE_TOPIC,
+                    msg_type=SmachContainerStructure,
+                    callback=partial(self._structure_msg_update, server_name),
+                    qos_profile=3,
+                )
 
-                self._status_subs[server_name] = rospy.Subscriber(
-                    server_name+smach_ros.introspection.STATUS_TOPIC,
-                    SmachContainerStatus,
+                self._status_subs[server_name] = self.node.create_subscription(
+                    topic=server_name + smach_ros.introspection.STATUS_TOPIC,
+                    msg_type=SmachContainerStatus,
                     callback=self._status_msg_update,
-                    queue_size=50)
+                    qos_profile=3,
+                )
 
             # This doesn't need to happen very often
-            rospy.sleep(1.0)
+            time.sleep(1.0)
 
             #self.server_combo.AppendItems([s for s in self._servers if s not in current_servers])
 
@@ -1054,6 +1069,8 @@ class MyApp(wx.App):
 
 
 def main():
+    rclpy.init()
+
     from argparse import ArgumentParser
     p = ArgumentParser()
     p.add_argument('-f', '--auto-focus',
@@ -1075,7 +1092,4 @@ def main():
 
 
 if __name__ == '__main__':
-    rospy.init_node('smach_viewer', anonymous=False,
-                    disable_signals=True, log_level=rospy.INFO)
-    sys.argv = rospy.myargv()
     main()

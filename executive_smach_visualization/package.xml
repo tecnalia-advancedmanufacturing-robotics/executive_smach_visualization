@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
-<package>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
   <name>executive_smach_visualization</name>
   <version>3.0.1</version>
   <description>
@@ -13,10 +14,11 @@
   <author>Jonathan Bohren</author>
   <author>Wim Meeussen</author>
 
-  <buildtool_depend>catkin</buildtool_depend>
-  <run_depend>smach_viewer</run_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>smach_viewer</exec_depend>
 
   <export>
-    <metapackage/>
+    <build_type>ament_cmake</build_type>
   </export>
 </package>

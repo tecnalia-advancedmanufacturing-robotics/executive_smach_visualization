@@ -1,3 +1,5 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>smach_viewer</name>
   <version>3.0.1</version>
@@ -20,30 +22,25 @@
 
   <author email="jbo@jhu.edu">Jonathan Bohren</author>
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>rostest</build_depend>
+  <exec_depend>rclpy</exec_depend>
 
   <!-- Dependencies needed after this package is compiled. -->
+  <exec_depend>cv_bridge</exec_depend>
   <exec_depend>smach_ros</exec_depend>
   <exec_depend>smach_msgs</exec_depend>
 
-  <exec_depend condition="$ROS_PYTHON_VERSION == 2">wxpython</exec_depend>
-  <exec_depend condition="$ROS_PYTHON_VERSION == 2">python-xdot</exec_depend>
-  <exec_depend condition="$ROS_PYTHON_VERSION == 3">python3-xdot</exec_depend>
-  <exec_depend condition="$ROS_PYTHON_VERSION == 3">python3-wxgtk4.0</exec_depend>
+  <exec_depend>python3-xdot</exec_depend>
+  <exec_depend>python3-wxgtk4.0</exec_depend>
   <exec_depend>graphviz</exec_depend>
-  <exec_depend condition="$ROS_PYTHON_VERSION == 2">python-gi</exec_depend>
-  <exec_depend condition="$ROS_PYTHON_VERSION == 3">python3-gi</exec_depend>
-  <exec_depend condition="$ROS_PYTHON_VERSION == 2">python-rospkg</exec_depend>
-  <exec_depend condition="$ROS_PYTHON_VERSION == 3">python3-rospkg</exec_depend>
-  <exec_depend condition="$ROS_PYTHON_VERSION == 2">python-qt5-bindings</exec_depend>
-  <exec_depend condition="$ROS_PYTHON_VERSION == 3">python3-qt5-bindings</exec_depend>
-  <exec_depend condition="$ROS_PYTHON_VERSION == 2">python-gi-cairo</exec_depend>
-  <exec_depend condition="$ROS_PYTHON_VERSION == 3">python3-gi-cairo</exec_depend>
+  <exec_depend>python3-gi</exec_depend>
+  <exec_depend>python3-rospkg</exec_depend>
+  <exec_depend>python3-qt5-bindings</exec_depend>
+  <exec_depend>python3-gi-cairo</exec_depend>
   <exec_depend>gtk3</exec_depend>
 
   <export>
-
+    <build_type>ament_cmake</build_type>
   </export>
 </package>
