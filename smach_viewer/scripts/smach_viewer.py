@@ -1077,7 +1077,7 @@ def main():
                    action='store_true',
                    help="Enable 'AutoFocus to subgraph' as default",
                    dest='enable_auto_focus')
-    args = p.parse_args()
+    args = p.parse_args(rclpy.utilities.remove_ros_args()[1:])
     app = MyApp()
 
     frame = SmachViewerFrame()
