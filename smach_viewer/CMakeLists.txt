@@ -18,10 +18,7 @@ find_package(smach_msgs REQUIRED)
 
 ament_python_install_package(smach_viewer_module)
 
-install(PROGRAMS
-  scripts/smach_viewer.py
-  DESTINATION lib/${PROJECT_NAME}
-)
+install(PROGRAMS scripts/smach_viewer.py DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -29,8 +26,8 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 
   # find_package(ament_cmake_pytest REQUIRED)
-  # ament_add_pytest_test(${PROJECT_NAME} test
-  #   APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR})
+  # ament_add_pytest_test(${PROJECT_NAME} test APPEND_ENV
+  # PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR})
 
   find_package(ament_cmake_flake8 REQUIRED)
 endif()
