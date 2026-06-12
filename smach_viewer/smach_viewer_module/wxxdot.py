@@ -22,7 +22,7 @@
 from xdot.ui.elements import *
 from xdot.ui.animation import *
 from xdot.dot.lexer import *
-from xdot.dot.parser import *
+from xdot.dot.parser import XDotParser
 import subprocess
 
 __all__ = ['WxDotWindow', 'WxDotFrame']
